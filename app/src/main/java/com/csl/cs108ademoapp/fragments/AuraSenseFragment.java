@@ -1,6 +1,9 @@
 package com.csl.cs108ademoapp.fragments;
 
+import static com.csl.cslibrary4a.RfidReader.TagType.TAG_EM_AURASENSE;
+
 import android.os.Bundle;
+
 import com.google.android.material.tabs.TabLayout;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
@@ -33,22 +36,22 @@ public class AuraSenseFragment extends CommonFragment {
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         InventoryRfidiMultiFragment fragment1 = (InventoryRfidiMultiFragment) mAdapter.fragment1;
-        switch (item.getItemId()) {
-            case R.id.menuAction_clear:
-                fragment1.clearTagsList();
-                return true;
-            case R.id.menuAction_sortRssi:
-                fragment1.sortTagsListByRssi();
-                return true;
-            case R.id.menuAction_sort:
-                fragment1.sortTagsList();
-                return true;
-            case R.id.menuAction_save:
-                fragment1.saveTagsList();
-                return true;
-            default:
-                return super.onOptionsItemSelected(item);
-        }
+         if (item.getItemId() == R.id.menuAction_clear) {
+             fragment1.clearTagsList();
+             return true;
+         } else if (item.getItemId() == R.id.menuAction_sortRssi) {
+             fragment1.sortTagsListByRssi();
+             return true;
+         } else if (item.getItemId() == R.id.menuAction_sort) {
+             fragment1.sortTagsList();
+             return true;
+         } else if (item.getItemId() == R.id.menuAction_save) {
+             fragment1.saveTagsList();
+             return true;
+         } else if (item.getItemId() == R.id.menuAction_share) {
+             fragment1.shareTagsList();
+             return true;
+         } else return super.onOptionsItemSelected(item);
     }
 
     @Override
@@ -111,7 +114,7 @@ public class AuraSenseFragment extends CommonFragment {
     public void onDestroy() {
         mAdapter.fragment0.onDestroy();
         mAdapter.fragment1.onDestroy();
-        MainActivity.csLibrary4A.setSelectCriteriaDisable(1);
+        MainActivity.csLibrary4A.setSelectCriteriaDisable(-1);
         MainActivity.csLibrary4A.setSameCheck(true);
         MainActivity.csLibrary4A.restoreAfterTagSelect();
         super.onDestroy();
@@ -141,7 +144,7 @@ public class AuraSenseFragment extends CommonFragment {
                     fragment0 = fragment;
                     break;
                 default:
-                    fragment = InventoryRfidiMultiFragment.newInstance(true,"E280B12");
+                    fragment = InventoryRfidiMultiFragment.newInstance(true, TAG_EM_AURASENSE, "E280B12");
                     fragment1 = fragment;
                     break;
             }

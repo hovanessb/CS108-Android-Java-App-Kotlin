@@ -1,19 +1,20 @@
 package com.csl.cs108ademoapp;
 
-import android.Manifest;
-import android.app.Activity;
+import static android.content.Context.WIFI_SERVICE;
+import static com.csl.cs108ademoapp.MainActivity.csLibrary4A;
+import static com.csl.cs108ademoapp.MainActivity.mContext;
+
 import android.bluetooth.BluetoothAdapter;
-import android.content.pm.PackageManager;
 import android.media.MediaScannerConnection;
 import android.net.wifi.WifiManager;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Environment;
 import android.provider.Settings;
-import android.widget.Toast;
+import android.util.Log;
 
-import com.csl.cs108library4a.Cs108Library4A;
-import com.csl.cs108library4a.ReaderDevice;
+import com.csl.cslibrary4a.ReaderDevice;
+import com.csl.cslibrary4a.RfidReaderChipData;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -46,20 +47,16 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
 
-import static android.content.Context.WIFI_SERVICE;
-import static androidx.core.app.ActivityCompat.requestPermissions;
-import static com.csl.cs108ademoapp.MainActivity.mContext;
-import static com.csl.cs108ademoapp.MainActivity.csLibrary4A;
-
 public class SaveList2ExternalTask extends AsyncTask<Void,Void,String> {
-    String messageStr;
-    String resultDisplay = "", errorDisplay;
+    public String messageStr;
+    String resultDisplay = "";
+    public String errorDisplay;
     ArrayList<ReaderDevice> tagsList; ReaderDevice tagDevice1;
     CustomPopupWindow customPopupWindow;
     boolean savedFile = false;
     int fileFormat = 0;
 
-    String url = null;
+    public String url = null, strBearer = null;
     HttpURLConnection con;
     String stringBluetoothMAC, stringWifiMac;
 
@@ -107,15 +104,21 @@ public class SaveList2ExternalTask extends AsyncTask<Void,Void,String> {
             }
         }
     }
-    public SaveList2ExternalTask() { }
+    boolean bImpinjServer = false;
+    public SaveList2ExternalTask(boolean bImpinjServer) {
+        csLibrary4A.appendToLog("bImpinjServer = " + bImpinjServer);
+        this.bImpinjServer = bImpinjServer;
+    }
 
     @Override
     protected void onPreExecute() {
-        if (tagsList == null) cancel(true);
-
-        if (MainActivity.csLibrary4A.getSavingFormatSetting() == 0) messageStr = createJSON(tagsList, null).toString();
-        else messageStr = createCSV(tagsList, null);
-        resultDisplay = save2File(messageStr, true);
+        if (!bImpinjServer) {
+            if (tagsList == null) cancel(true);
+            if (MainActivity.csLibrary4A.getSavingFormatSetting() == 0)
+                messageStr = createJSON(tagsList, null).toString();
+            else messageStr = createCSV(tagsList, null);
+            resultDisplay = save2File(messageStr, true);
+        }
         customPopupWindow = new CustomPopupWindow(mContext);
         csLibrary4A.appendToLog("SaveList2ExternalTask: resultDisplay = " + resultDisplay);
         if (resultDisplay == null) resultDisplay = "";
@@ -128,18 +131,20 @@ public class SaveList2ExternalTask extends AsyncTask<Void,Void,String> {
     }
 
     protected String doInBackground(Void... params) {
+        Log.i("Hello", "bImpinjServer: doInBackground starts");
         if (MainActivity.csLibrary4A.isBleConnected() == false) {
             resultDisplay += "Error in sending data to server as the reader is not connected";
             return null;
-        } else if (MainActivity.csLibrary4A.getSaveCloudEnable() == false) {
+        } else if (MainActivity.csLibrary4A.getSaveCloudEnable() == false && bImpinjServer == false) {
             resultDisplay += "No saving to cloud as it is disabled";
             return null;
         }
         try {
             if (true) {
-                openServer();
-                write2Server(messageStr);
-                closeServer();
+                csLibrary4A.appendToLog("bImpinjServer: doInBackground starts doing");
+                openServer(bImpinjServer); csLibrary4A.appendToLog("bImpinjServer: doInBackground after openServer");
+                write2Server(messageStr); csLibrary4A.appendToLog("bImpinjServer: doInBackground after write2Server");
+                closeServer(); csLibrary4A.appendToLog("bImpinjServer: doInBackground after closeServer");
             } else if (true) {
                 String serverAddress = "192.168.25.119:21";
                 String addressPort[];
@@ -176,7 +181,11 @@ public class SaveList2ExternalTask extends AsyncTask<Void,Void,String> {
     protected void onCancelled() { }
     protected void onPostExecute(String output) {
         if (savedFile == false) resultDisplay += "\n" + save2File(messageStr, false);
-        customPopupWindow.popupWindow.dismiss(); customPopupWindow.popupStart(resultDisplay, false);
+        customPopupWindow.popupWindow.dismiss();
+        csLibrary4A.appendToLog("bImpinjServer = " + bImpinjServer + ", responseCode = " + responseCode + ", resultDisplay = " + resultDisplay);
+        if (resultDisplay != null && resultDisplay.length() != 0) {
+            if (!bImpinjServer || responseCode != 200) customPopupWindow.popupStart(resultDisplay, false);
+        }
     }
 
     public String createStrEpcList() {
@@ -256,15 +265,7 @@ public class SaveList2ExternalTask extends AsyncTask<Void,Void,String> {
             object.put("rfidReaderInternalSerialNumber", MainActivity.csLibrary4A.getRadioSerial());
 
             object.put("smartPhoneName", Build.MODEL);
-            String strPhoneSerial = null;
-            /*if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                try {
-                    strPhoneSerial = Build.getSerial();
-                } catch (Exception ex) {
-                    mCs108Library4a.appendToLog("Exception = " + ex.getCause());
-                }
-            } else*/
-                strPhoneSerial = Build.SERIAL;
+            String strPhoneSerial = Build.SERIAL;
             object.put("smartPhoneSerialNumber", strPhoneSerial);
             object.put("smartPhoneBluetoothMACAddress",  stringBluetoothMAC);
             object.put("smartPhoneWiFiMACAddress", stringWifiMac);
@@ -291,16 +292,16 @@ public class SaveList2ExternalTask extends AsyncTask<Void,Void,String> {
                     String objectTag;
                     objectTag = "PC,";
                     objectTag += "EPC,";
-                    if ((csvColumnSelect & (0x01 << Cs108Library4A.CsvColumn.RESERVE_BANK.ordinal())) != 0) objectTag += "Reserve Bank,";
-                    if ((csvColumnSelect & (0x01 << Cs108Library4A.CsvColumn.EPC_BANK.ordinal())) != 0) objectTag += "EPC Bank,";
-                    if ((csvColumnSelect & (0x01 << Cs108Library4A.CsvColumn.TID_BANK.ordinal())) != 0) objectTag += "TID Bank,";
-                    if ((csvColumnSelect & (0x01 << Cs108Library4A.CsvColumn.USER_BANK.ordinal())) != 0) objectTag += "User Bank,";
-                    if ((csvColumnSelect & (0x01 << Cs108Library4A.CsvColumn.PHASE.ordinal())) != 0) objectTag += "Phase,";
-                    if ((csvColumnSelect & (0x01 << Cs108Library4A.CsvColumn.CHANNEL.ordinal())) != 0) objectTag += "Channel,";
-                    if ((csvColumnSelect & (0x01 << Cs108Library4A.CsvColumn.TIME.ordinal())) != 0) objectTag += "Time Of Read,";
-                    if ((csvColumnSelect & (0x01 << Cs108Library4A.CsvColumn.TIMEZONE.ordinal())) != 0) objectTag += "Time Zone,";
-                    if ((csvColumnSelect & (0x01 << Cs108Library4A.CsvColumn.LOCATION.ordinal())) != 0) objectTag += "location Of Read Latitude, Location of Read Longitude, ";
-                    if ((csvColumnSelect & (0x01 << Cs108Library4A.CsvColumn.DIRECTION.ordinal())) != 0) objectTag += "eCompass";
+                    if ((csvColumnSelect & (0x01 << RfidReaderChipData.CsvColumn.RESERVE_BANK.ordinal())) != 0) objectTag += "Reserve Bank,";
+                    if ((csvColumnSelect & (0x01 << RfidReaderChipData.CsvColumn.EPC_BANK.ordinal())) != 0) objectTag += "EPC Bank,";
+                    if ((csvColumnSelect & (0x01 << RfidReaderChipData.CsvColumn.TID_BANK.ordinal())) != 0) objectTag += "TID Bank,";
+                    if ((csvColumnSelect & (0x01 << RfidReaderChipData.CsvColumn.USER_BANK.ordinal())) != 0) objectTag += "User Bank,";
+                    if ((csvColumnSelect & (0x01 << RfidReaderChipData.CsvColumn.PHASE.ordinal())) != 0) objectTag += "Phase,";
+                    if ((csvColumnSelect & (0x01 << RfidReaderChipData.CsvColumn.CHANNEL.ordinal())) != 0) objectTag += "Channel,";
+                    if ((csvColumnSelect & (0x01 << RfidReaderChipData.CsvColumn.TIME.ordinal())) != 0) objectTag += "Time Of Read,";
+                    if ((csvColumnSelect & (0x01 << RfidReaderChipData.CsvColumn.TIMEZONE.ordinal())) != 0) objectTag += "Time Zone,";
+                    if ((csvColumnSelect & (0x01 << RfidReaderChipData.CsvColumn.LOCATION.ordinal())) != 0) objectTag += "location Of Read Latitude, Location of Read Longitude, ";
+                    if ((csvColumnSelect & (0x01 << RfidReaderChipData.CsvColumn.DIRECTION.ordinal())) != 0) objectTag += "eCompass";
                     objectTag += "\n";
                     object += objectTag;
                 }
@@ -340,21 +341,21 @@ public class SaveList2ExternalTask extends AsyncTask<Void,Void,String> {
                     objectTag = String.format("=\"%s\",", pcData);
                     objectTag += String.format("=\"%s\",", epcData);
 
-                    if ((csvColumnSelect & (0x01 << Cs108Library4A.CsvColumn.RESERVE_BANK.ordinal())) != 0) objectTag += String.format("=\"%s\",", resBankData);
-                    if ((csvColumnSelect & (0x01 << Cs108Library4A.CsvColumn.EPC_BANK.ordinal())) != 0) objectTag += String.format("=\"%s\",", epcBankData);
-                    if ((csvColumnSelect & (0x01 << Cs108Library4A.CsvColumn.TID_BANK.ordinal())) != 0) objectTag += String.format("=\"%s\",", tidBankData);
-                    if ((csvColumnSelect & (0x01 << Cs108Library4A.CsvColumn.USER_BANK.ordinal())) != 0) objectTag += String.format("=\"%s\",", userBankData);
-                    if ((csvColumnSelect & (0x01 << Cs108Library4A.CsvColumn.PHASE.ordinal())) != 0) objectTag += String.format("%d,", phase);
-                    if ((csvColumnSelect & (0x01 << Cs108Library4A.CsvColumn.CHANNEL.ordinal())) != 0) objectTag += String.format("%d,", channel);
-                    if ((csvColumnSelect & (0x01 << Cs108Library4A.CsvColumn.TIME.ordinal())) != 0) objectTag += String.format("=\"%s\",", timeOfRead);
-                    if ((csvColumnSelect & (0x01 << Cs108Library4A.CsvColumn.TIMEZONE.ordinal())) != 0) objectTag += String.format("%s,", timeZone);
-                    if ((csvColumnSelect & (0x01 << Cs108Library4A.CsvColumn.LOCATION.ordinal())) != 0) objectTag += String.format("%s,", location);
-                    if ((csvColumnSelect & (0x01 << Cs108Library4A.CsvColumn.DIRECTION.ordinal())) != 0)objectTag += String.format("%s", compass);
+                    if ((csvColumnSelect & (0x01 << RfidReaderChipData.CsvColumn.RESERVE_BANK.ordinal())) != 0) objectTag += String.format("=\"%s\",", resBankData);
+                    if ((csvColumnSelect & (0x01 << RfidReaderChipData.CsvColumn.EPC_BANK.ordinal())) != 0) objectTag += String.format("=\"%s\",", epcBankData);
+                    if ((csvColumnSelect & (0x01 << RfidReaderChipData.CsvColumn.TID_BANK.ordinal())) != 0) objectTag += String.format("=\"%s\",", tidBankData);
+                    if ((csvColumnSelect & (0x01 << RfidReaderChipData.CsvColumn.USER_BANK.ordinal())) != 0) objectTag += String.format("=\"%s\",", userBankData);
+                    if ((csvColumnSelect & (0x01 << RfidReaderChipData.CsvColumn.PHASE.ordinal())) != 0) objectTag += String.format("%d,", phase);
+                    if ((csvColumnSelect & (0x01 << RfidReaderChipData.CsvColumn.CHANNEL.ordinal())) != 0) objectTag += String.format("%d,", channel);
+                    if ((csvColumnSelect & (0x01 << RfidReaderChipData.CsvColumn.TIME.ordinal())) != 0) objectTag += String.format("=\"%s\",", timeOfRead);
+                    if ((csvColumnSelect & (0x01 << RfidReaderChipData.CsvColumn.TIMEZONE.ordinal())) != 0) objectTag += String.format("%s,", timeZone);
+                    if ((csvColumnSelect & (0x01 << RfidReaderChipData.CsvColumn.LOCATION.ordinal())) != 0) objectTag += String.format("%s,", location);
+                    if ((csvColumnSelect & (0x01 << RfidReaderChipData.CsvColumn.DIRECTION.ordinal())) != 0)objectTag += String.format("%s", compass);
                     objectTag += "\n";
                     object += objectTag;
                 }
 
-                if ((csvColumnSelect & (0x01 << Cs108Library4A.CsvColumn.OTHERS.ordinal())) != 0) {
+                if ((csvColumnSelect & (0x01 << RfidReaderChipData.CsvColumn.OTHERS.ordinal())) != 0) {
                     object += "\nUser Description,this is example tag data\n";
 
                     object += String.format("RFID Reader Name,=\"%s\"\n", MainActivity.csLibrary4A.getBluetoothICFirmwareName());
@@ -375,6 +376,7 @@ public class SaveList2ExternalTask extends AsyncTask<Void,Void,String> {
         String resultDisplay = "";
         if (MainActivity.csLibrary4A.getSaveFileEnable() == false) return "No saving file as it is disabled";
         boolean writeExtPermission = true;
+/*
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             if (mContext.checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
                 csLibrary4A.appendToLog("WRITE_EXTERNAL_STORAGE Permission is required !!!");
@@ -387,18 +389,19 @@ public class SaveList2ExternalTask extends AsyncTask<Void,Void,String> {
                 }
             } else csLibrary4A.appendToLog("WRITE_EXTERNAL_STORAGE Permission is GRANTED !!!");
         }
-
+*/
         errorDisplay = null;
         if (writeExtPermission == false) {
             errorDisplay = "denied WRITE_EXTERNAL_STORAGE Permission !!!";
         } else if (Environment.MEDIA_MOUNTED.equals(Environment.getExternalStorageState()) == false) errorDisplay = "Error in mouting external storage !!!";
         else {
-            File path = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + "/" + Environment.DIRECTORY_DOWNLOADS + "/cs108Java");
+            String strDir = "cs108Java";
+            File path = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + "/" + Environment.DIRECTORY_DOWNLOADS + "/" + strDir);
             if (path.exists() == false) path.mkdirs();
             if (path.exists() == false) errorDisplay = "Error in making directory !!!";
             else {
                 String dateTime = new SimpleDateFormat("yyMMdd_HHmmss").format(new Date());
-                String fileName = "cs108Java_" + dateTime + (csLibrary4A.getSavingFormatSetting() == 0 ? ".txt" : ".csv");
+                String fileName = strDir + "_" + dateTime + (csLibrary4A.getSavingFormatSetting() == 0 ? ".txt" : ".csv");
                 File file = new File(path, fileName);
                 if (file == null) errorDisplay = "Error in making directory !!!";
                 else {
@@ -409,7 +412,7 @@ public class SaveList2ExternalTask extends AsyncTask<Void,Void,String> {
                         outputStream.write(messageStr.getBytes());
                         errorDisplay = "Error in close()"; outputStream.close();
                         MediaScannerConnection.scanFile(mContext, new String[]{file.getAbsolutePath()}, null, null);
-                        resultDisplay = "Success in saving data to Download/cs108Java/" + fileName;
+                        resultDisplay = "Success in saving data to Download/" + strDir + "/" + fileName;
                         errorDisplay = null;
                     } catch (Exception ex) {
                         errorDisplay += ex.getMessage();
@@ -421,62 +424,110 @@ public class SaveList2ExternalTask extends AsyncTask<Void,Void,String> {
         return resultDisplay;
     }
 
-    public void openServer() throws Exception {
-        if (false) {
-            url = "https://";
-            url += "192.168.25.21:";
-            url += "29090/WebServiceRESTs/1.0/req/";
-        } else if (false) url = "http://ptsv2.com/t/10i1t-1519143332/post";
-        else url = csLibrary4A.getServerLocation();
+    public boolean openServer(boolean bImpinjServer) {
+        boolean bValue = true;
+        try {
+            if (false) {
+                url = "https://";
+                url += "192.168.25.21:";
+                url += "29090/WebServiceRESTs/1.0/req/";
+            } else if (false) url = "http://ptsv2.com/t/10i1t-1519143332/post";
+            else if (bImpinjServer) {
+            } //url = "https://h9tqczg9-7275.asse.devtunnels.ms/api/Auth/login"; //"https://142.251.220.110"; //
+            else url = csLibrary4A.getServerLocation();
+            MainActivity.csLibrary4A.appendToLog("nnn 1: url is " + url);
 
-        errorDisplay = "Error in SSLContext.getInstance()"; SSLContext sc = SSLContext.getInstance("TLS");
-        errorDisplay = "Error in SSLContext.init()"; sc.init(null, new TrustManager[]{
-                new X509TrustManager() {
-                    @Override
-                    public void checkClientTrusted(X509Certificate[] certs, String authType) throws CertificateException {
-                        throw new UnsupportedOperationException("TrustManager.checkClientTrusted: Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+            errorDisplay = "Error in SSLContext.getInstance()";
+            SSLContext sc = SSLContext.getInstance("TLSv1.2");
+            MainActivity.csLibrary4A.appendToLog("nnn 2: SSLContext sc is " + (sc == null ? "null" : "valid"));
+            errorDisplay = "Error in SSLContext.init()";
+            sc.init(null, new TrustManager[]{
+                    new X509TrustManager() {
+                        @Override
+                        public void checkClientTrusted(X509Certificate[] certs, String authType) throws CertificateException {
+                            throw new UnsupportedOperationException("TrustManager.checkClientTrusted: Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+                        }
+
+                        @Override
+                        public void checkServerTrusted(X509Certificate[] certs, String authType) throws CertificateException {
+                        }
+
+                        @Override
+                        public X509Certificate[] getAcceptedIssuers() {
+                            return null;
+                        }
                     }
-
+            }, new SecureRandom());
+            MainActivity.csLibrary4A.appendToLog("nnn 3: SSLContext sc.init is Okay");
+            if (true) {
+                errorDisplay = "Error in setDefaultSSLSocketFactory()";
+                MainActivity.csLibrary4A.appendToLog("nnn 4: sc.getSocketFactory is " + (sc.getSocketFactory() == null ? "null" : "valid"));
+                HttpsURLConnection.setDefaultSSLSocketFactory(sc.getSocketFactory());
+                MainActivity.csLibrary4A.appendToLog("nnn 5: HttpsURLConnection.setDefaultSSLSocketFactory is Okay");
+                errorDisplay = "Error in setDefaultHostnameVerifier()";
+                HttpsURLConnection.setDefaultHostnameVerifier(new HostnameVerifier() {
                     @Override
-                    public void checkServerTrusted(X509Certificate[] certs, String authType) throws CertificateException {
+                    public boolean verify(String hostname, javax.net.ssl.SSLSession sslSession) {
+                        return true;
                     }
+                });
+                MainActivity.csLibrary4A.appendToLog("nnn 6: HttpsURLConnection.setDefaultHostnameVerifier is Okay");
+            }
+            HttpsURLConnection.setFollowRedirects(false);
+            MainActivity.csLibrary4A.appendToLog("nnn 7: HttpsURLConnection.setFollowRedirects is Okay");
 
-                    @Override
-                    public X509Certificate[] getAcceptedIssuers() {
-                        return null;
-                    }
-                }
-        }, new SecureRandom());
-        if (true) {
-            errorDisplay = "Error in setDefaultSSLSocketFactory()"; HttpsURLConnection.setDefaultSSLSocketFactory(sc.getSocketFactory());
-            errorDisplay = "Error in setDefaultHostnameVerifier()"; HttpsURLConnection.setDefaultHostnameVerifier(new HostnameVerifier() {
-                @Override
-                public boolean verify(String hostname, javax.net.ssl.SSLSession sslSession) {
-                    return true;
-                }
-            });
+            errorDisplay = "Error in URL()";
+            URL obj = new URL(url);
+            MainActivity.csLibrary4A.appendToLog("nnn 8: URL(obj) is " + (obj != null ? "valid" : "NULL") + " with url = " + url);
+            errorDisplay = "Error in openConnection()";
+            boolean isHttps = false;
+            if (url.length() >= 6) {
+                if (url.substring(0, 6).matches("https:")) isHttps = true;
+            }
+            con = (HttpURLConnection) obj.openConnection();
+            MainActivity.csLibrary4A.appendToLog("nnn 9: HttpURLConnection obj.openConnection is " + (con == null ? "null" : "valid"));
+            if (isHttps) {
+                con = (HttpsURLConnection) obj.openConnection();
+                MainActivity.csLibrary4A.appendToLog("nnn 10: HttpsURLConnection obj.openConnection is " + (con == null ? "null" : "valid"));
+            }
+            errorDisplay = "Error in setConnectTimeout()";
+            con.setConnectTimeout(MainActivity.csLibrary4A.getServerTimeout() * 1000);
+            MainActivity.csLibrary4A.appendToLog("nnn 11: con.setConnectTimeout is Okay");
+            errorDisplay = "Error in setRequestMethod()";
+            con.setRequestMethod("POST");
+            MainActivity.csLibrary4A.appendToLog("nnn 12: con.setRequestMethod is Okay");
+            //errorDisplay = "Error in setRequestProperty(User-Agent)"; con.setRequestProperty("User-Agent", "Mozilla/5.0");
+            //errorDisplay = "Error in setRequestProperty(text/plain)"; con.setRequestProperty("text/plain", "text/plain");
+            //errorDisplay = "Error in setRequestProperty(Accept-Language)"; con.setRequestProperty("Accept-Language", "en-US,en;q=0.5");
+            MainActivity.csLibrary4A.appendToLog("nnn 13: authenticate in url position : " + url.indexOf("authenticate"));
+            if (url.indexOf("authenticate") >= 0) {
+                String string = strBearer;
+                MainActivity.csLibrary4A.appendToLog("nnn 14: Authorization value = " + string);
+                errorDisplay = "Error in setRequestProperty(Authorization)";
+                con.setRequestProperty("Authorization", string);
+                MainActivity.csLibrary4A.appendToLog("nnn 15 : con.setRequestProperty is Okay");
+            }
+            errorDisplay = "Error in setRequestProperty(Content)";
+            con.setRequestProperty("Content-Type", "application/json); //; charset=utf8");
+            MainActivity.csLibrary4A.appendToLog("nnn 16: con.setRequestProperty is Okay");
+            errorDisplay = "Error in setDoOutput()";
+            con.setDoOutput(true);
+            MainActivity.csLibrary4A.appendToLog("nnn 17: con.setDoOutput is Okay");
+            errorDisplay = "Error in setDoInput()";
+            con.setDoInput(true);
+            MainActivity.csLibrary4A.appendToLog("nnn 18: Finished openServer");
+        } catch (Exception ex) {
+            MainActivity.csLibrary4A.appendToLog("openServer Exception: " + ex.getMessage());
+            bValue = false;
         }
-        HttpsURLConnection.setFollowRedirects(false);
-
-        errorDisplay = "Error in URL()"; URL obj = new URL(url);
-        errorDisplay = "Error in openConnection()";
-        boolean isHttps = false;
-        if (url.length() >= 6) {
-            if (url.substring(0, 6).matches("https:")) isHttps = true;
-        }
-        con = (HttpURLConnection) obj.openConnection();
-        if (isHttps) {
-            con = (HttpsURLConnection) obj.openConnection();
-        }
-        errorDisplay = "Error in setConnectTimeout()"; con.setConnectTimeout(MainActivity.csLibrary4A.getServerTimeout() * 1000);
-        errorDisplay = "Error in setRequestMethod()"; con.setRequestMethod("POST");
-        errorDisplay = "Error in setRequestProperty(User-Agent)"; con.setRequestProperty("User-Agent", "Mozilla/5.0");
-        errorDisplay = "Error in setRequestProperty(Accept-Languag)"; con.setRequestProperty("Accept-Language", "en-US,en;q=0.5");
-        errorDisplay = "Error in setDoOutput()"; con.setDoOutput(true);
+        return bValue;
     }
+
     boolean serverWritten = false;
     public void write2Server(String messageStr0) {
+        csLibrary4A.appendToLog("messageStr0 = " + messageStr0);
         try {
+            //InputStream is = con.getInputStream(); DataInputStream ir = new DataInputStream(is);
             errorDisplay = "Error in getOutputStream()"; OutputStream os = con.getOutputStream();
             errorDisplay = "Error in DataOutputStream()"; DataOutputStream wr = new DataOutputStream(os);
 
@@ -486,32 +537,43 @@ public class SaveList2ExternalTask extends AsyncTask<Void,Void,String> {
             errorDisplay = "Error in close(wr)"; wr.close();
             errorDisplay = "Error in close(os)"; os.close();
             serverWritten = true;
+            //csLibrary4A.appendToLog("inputStream = " + ir.readUTF());
+            MainActivity.csLibrary4A.appendToLog("nnn 19: finished write2Server");
         } catch (Exception ex) {
-            MainActivity.csLibrary4A.appendToLog("errorDisplay = " + errorDisplay + ", execpetion = " + ex.getMessage());
+            MainActivity.csLibrary4A.appendToLog("nnn 20: errorDisplay = " + errorDisplay + ", execpetion = " + ex.getMessage());
         }
     }
-    public void closeServer() throws Exception {
+
+    public int responseCode; public String response = null;
+    public boolean closeServer() {
+        boolean bValue = true;
         if (serverWritten) {
-            errorDisplay = "Error in getResponseCode()";
-            int responseCode = con.getResponseCode();
-            MainActivity.csLibrary4A.appendToLog("errorDisplay = " + errorDisplay);
-            MainActivity.csLibrary4A.appendToLog("responseCode = " + responseCode);
-            if (responseCode != 200)
-                errorDisplay = "Error in response code = " + responseCode;
-            else {
-                BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream()));
-                MainActivity.csLibrary4A.appendToLog("errorDisplay = " + errorDisplay);
-                String inputLine;
-                String response = "";
-                while ((inputLine = in.readLine()) != null) {
-                    response += inputLine;
+            try {
+                errorDisplay = "Error in getResponseCode()";
+                responseCode = con.getResponseCode();
+                //MainActivity.csLibrary4A.appendToLog("errorDisplay = " + errorDisplay);
+                MainActivity.csLibrary4A.appendToLog("responseCode = " + responseCode);
+                if (responseCode != 200)
+                    errorDisplay = "Error in response code = " + responseCode;
+                else {
+                    BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream()));
+                    //MainActivity.csLibrary4A.appendToLog("errorDisplay = " + errorDisplay);
+                    String inputLine;
+                    response = "";
+                    while ((inputLine = in.readLine()) != null) {
+                        response += inputLine;
+                    }
+                    in.close();
+                    //MainActivity.csLibrary4A.appendToLog("errorDisplay = " + errorDisplay);
+                    resultDisplay += "Success in sending data to server with response = " + response;
+                    MainActivity.csLibrary4A.appendToLog("response = " + response);
+                    errorDisplay = null;
                 }
-                in.close();
-                MainActivity.csLibrary4A.appendToLog("errorDisplay = " + errorDisplay);
-                resultDisplay += "Success in sending data to server with response = " + response;
-                errorDisplay = null;
+            } catch (Exception ex) {
+                bValue = false;
             }
         }
         con.disconnect();
+        return bValue;
     }
 }

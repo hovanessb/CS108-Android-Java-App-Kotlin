@@ -5,7 +5,7 @@ import android.content.Context;
 import androidx.annotation.Keep;
 import androidx.annotation.NonNull;
 
-import com.csl.cs108library4a.ReaderDevice;
+import com.csl.cslibrary4a.ReaderDevice;
 
 import java.util.ArrayList;
 
@@ -37,7 +37,7 @@ public class SharedObjects {
 
     public ArrayList<ReaderDevice> readersList = new ArrayList<ReaderDevice>();
     public String connectedBleAddressOld = "";
-    public boolean versioinWarningShown = false;
+    public boolean versionWarningShown = false;
     public int batteryWarningShown = 0;
 
     public boolean runningInventoryRfidTask = false;

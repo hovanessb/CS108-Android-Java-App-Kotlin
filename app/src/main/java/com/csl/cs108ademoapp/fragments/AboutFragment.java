@@ -2,12 +2,13 @@ package com.csl.cs108ademoapp.fragments;
 
 import android.os.Bundle;
 import android.os.Handler;
-import androidx.appcompat.app.ActionBar;
-import androidx.appcompat.app.AppCompatActivity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
+
+import androidx.appcompat.app.ActionBar;
+import androidx.appcompat.app.AppCompatActivity;
 
 import com.csl.cs108ademoapp.BuildConfig;
 import com.csl.cs108ademoapp.MainActivity;
@@ -66,7 +67,10 @@ public class AboutFragment extends CommonFragment {
             TextView moduleBarOnStatus = (TextView) getActivity().findViewById(R.id.moduleBar_onStatus);
             TextView triggerOnStatus = (TextView) getActivity().findViewById(R.id.trigger_onStatus);
             TextView moduleBattery = (TextView) getActivity().findViewById(R.id.module_battery);
-            TextView moduleVersion = (TextView) getActivity().findViewById(R.id.module_versoin);
+            TextView moduleVersionLabel = (TextView) getActivity().findViewById(R.id.module_versionLabel);
+            if (MainActivity.csLibrary4A.get98XX() == 2) moduleVersionLabel.setText("Atmel firmware version");
+            else if (MainActivity.csLibrary4A.get98XX() == 0) moduleVersionLabel.setText("SiliconLab firmware version");
+            TextView moduleVersion = (TextView) getActivity().findViewById(R.id.module_version);
             TextView radioSerial = (TextView) getActivity().findViewById(R.id.radio_serialnumber);
             TextView radioBoardVersion = (TextView) getActivity().findViewById(R.id.radio_boardVersion);
             TextView productSerial = (TextView) getActivity().findViewById(R.id.module_productserialnumber);

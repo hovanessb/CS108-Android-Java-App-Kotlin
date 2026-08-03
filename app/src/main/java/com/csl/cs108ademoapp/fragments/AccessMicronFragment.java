@@ -1,5 +1,10 @@
 package com.csl.cs108ademoapp.fragments;
 
+import static com.csl.cslibrary4a.RfidReader.TagType.TAG_AXZON;
+import static com.csl.cslibrary4a.RfidReader.TagType.TAG_MAGNUS_S2;
+import static com.csl.cslibrary4a.RfidReader.TagType.TAG_MAGNUS_S3;
+import static com.csl.cslibrary4a.RfidReader.TagType.TAG_XERXES;
+
 import androidx.lifecycle.Lifecycle;
 import android.graphics.Color;
 import android.os.AsyncTask;
@@ -21,8 +26,8 @@ import com.csl.cs108ademoapp.AccessTask;
 import com.csl.cs108ademoapp.GenericTextWatcher;
 import com.csl.cs108ademoapp.MainActivity;
 import com.csl.cs108ademoapp.R;
-import com.csl.cs108library4a.Cs108Library4A;
-import com.csl.cs108library4a.ReaderDevice;
+import com.csl.cslibrary4a.ReaderDevice;
+import com.csl.cslibrary4a.RfidReaderChipData;
 
 public class AccessMicronFragment extends CommonFragment {
     final boolean DEBUG = true;
@@ -120,16 +125,16 @@ public class AccessMicronFragment extends CommonFragment {
 
                 switch (spinnerTagType.getSelectedItemPosition()) {
                     case 0:
-                        MainActivity.mDid = "E28240";
+                        MainActivity.tagType = TAG_AXZON; MainActivity.mDid = "E28240";
                         break;
                     case 1:
-                        MainActivity.mDid = "E282402";
+                        MainActivity.tagType = TAG_MAGNUS_S2; MainActivity.mDid = "E282402";
                         break;
                     case 2:
-                        MainActivity.mDid = "E282403";
+                        MainActivity.tagType = TAG_MAGNUS_S3; MainActivity.mDid = "E282403";
                         break;
                     case 3:
-                        MainActivity.mDid = "E282405";
+                        MainActivity.tagType = TAG_XERXES; MainActivity.mDid = "E282405";
                         break;
                 }
                 if (btagTypeSelected) {
@@ -393,14 +398,12 @@ public class AccessMicronFragment extends CommonFragment {
                     int selectBank = 1;
                     int selectOffset = 32;
                     String selectMask = editTextRWTagID.getText().toString();
-                    accessTask = new AccessTask(
-                            buttonRead, null,
-                            invalid,
+                    accessTask = new AccessTask(buttonRead, null, invalid, true,
                             selectMask, selectBank, selectOffset,
                             editTextAccessRWAccPassword.getText().toString(),
                             Integer.valueOf(editTextaccessRWAntennaPower.getText().toString()),
-                            (operationRead ? Cs108Library4A.HostCommands.CMD_18K6CREAD: Cs108Library4A.HostCommands.CMD_18K6CWRITE),
-                            0, 0, true,
+                            (operationRead ? RfidReaderChipData.HostCommands.CMD_18K6CREAD: RfidReaderChipData.HostCommands.CMD_18K6CWRITE),
+                            0, 0, true, bSkipClearPrefilter,
                             null, null, null, null, null);
                     accessTask.execute();
                     rerunRequest = true;
@@ -545,8 +548,7 @@ public class AccessMicronFragment extends CommonFragment {
         else {
             if (changedSelectIndex) {
                 changedSelectIndex = false; MainActivity.selectFor = 0;
-                MainActivity.csLibrary4A.setSelectCriteriaDisable(2);
-                MainActivity.csLibrary4A.setSelectCriteriaDisable(1);
+                MainActivity.csLibrary4A.setSelectCriteriaDisable(-1);
             }
             accessResult = accessTask.accessResult;
             if (accessResult == null) {
@@ -604,11 +606,13 @@ public class AccessMicronFragment extends CommonFragment {
         }
     }
 
+    boolean bSkipClearPrefilter = false;
     boolean processTickItems() {
         boolean invalidRequest1 = false;
         int accBank = 0, accSize = 0, accOffset = 0;
         String writeData = "";
 
+        bSkipClearPrefilter = false;
         if (editTextRWTagID.getText().toString().length() == 0) invalidRequest1 = true;
         else if (checkBoxConfig.isChecked() == true && checkProcessing < 1 && operationRead) {
             accBank = 2; accOffset = 0; accSize = 2; readWriteTypes = ReadWriteTypes.MODELCODE; checkProcessing = 1;
@@ -626,14 +630,18 @@ public class AccessMicronFragment extends CommonFragment {
             int offset = 0xA0;
             if (modelCode == 3) offset = 0xD0;
             else if (modelCode == 5) offset = 0x3D0;
-            MainActivity.csLibrary4A.setSelectCriteria(1, true, 4, 5, selectHold,3, offset, "3F");
+            bSkipClearPrefilter = true;
+            MainActivity.csLibrary4A.setSelectCriteriaDisable(-1);
+            MainActivity.csLibrary4A.setSelectCriteria(-1, true, 4, 5, selectHold,3, offset, "1F");
             changedSelectIndex = true;
             accBank = 0; accOffset = 13; if (modelCode == 1) { accBank = 3; accOffset = 9; }
             accSize = 1; readWriteTypes = ReadWriteTypes.RSSICODE; checkProcessing = 4;
             textViewRssiCodeOk.setText(""); textViewRssiCode.setText("");
         } else if (checkBoxTemperatureCode.isChecked() == true && (modelCode == 3 || modelCode == 5) && checkProcessing < 5 && operationRead) {
-            if (modelCode == 3) MainActivity.csLibrary4A.setSelectCriteria(1, true, 4, 2, 0,3, 0xE0, "");
-            else MainActivity.csLibrary4A.setSelectCriteria(1, true, 4, 5, selectHold,3, 0x3B0, "00");
+            bSkipClearPrefilter = true;
+            MainActivity.csLibrary4A.setSelectCriteriaDisable(-1);
+            if (modelCode == 3) MainActivity.csLibrary4A.setSelectCriteria(-1, true, 4, 2, 0,3, 0xE0, "");
+            else MainActivity.csLibrary4A.setSelectCriteria(-1, true, 4, 5, selectHold,3, 0x3B0, "00");
             changedSelectIndex = true;
             accBank = 0; accOffset = 14; accSize = 1; readWriteTypes = ReadWriteTypes.TEMPERATURECODE; checkProcessing = 5;
             textViewTemperatureCodeOk.setText(""); textViewTemperatureCode.setText("");

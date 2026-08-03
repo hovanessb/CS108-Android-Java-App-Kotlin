@@ -3,8 +3,8 @@
     style="@style/base_layout_style"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="@color/colorPrimaryDark"
     android:gravity="center"
-    android:background="@color/material_dynamic_neutral_variant0"
     android:orientation="vertical">
 
     <TableRow
@@ -16,25 +16,29 @@
 
         <Button
             android:id="@+id/directWedgeButtonSetup"
-            android:layout_width="match_parent"
             style="@style/DashboardButton"
-            android:textColor="#FFFFFF"
-            android:text="Configuration"/>
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Configuration"
+            android:textColor="#FFFFFF" />
     </TableRow>
 
     <TableRow
+        android:id="@+id/directWedgeRow1"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:gravity="center"
-        android:visibility="gone">
+        android:background="@color/colorPrimary"
+        android:gravity="center">
 
         <TextView
-            android:layout_width="wrap_content"
             style="@style/DashboardButton"
-            android:text="Select Reader"/>
+            android:layout_width="wrap_content"
+            android:text="Select Reader"
+            android:textColor="#FFFFFF" />
     </TableRow>
 
     <TableRow
+        android:id="@+id/directWedgeRow2"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
@@ -53,6 +57,7 @@
     </TableRow>
 
     <TableRow
+        android:id="@+id/directWedgeRow3"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="30dp"
@@ -61,27 +66,14 @@
 
         <Button
             android:id="@+id/directWedgeButtonConnect"
+            style="@style/DashboardButton"
             android:layout_width="match_parent"
-            style="@style/DashboardButton"
-            android:textColor="#FFFFFF"
-            android:text="Connect"/>
+            android:text="Connect"
+            android:textColor="#FFFFFF" />
     </TableRow>
 
     <TableRow
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="30dp"
-        android:gravity="center"
-        android:visibility="gone">
-
-        <Button
-            android:id="@+id/directWedgeButtonStart"
-            android:layout_width="wrap_content"
-            style="@style/DashboardButton"
-            android:text="Start Wedge"/>
-    </TableRow>
-
-    <TableRow
+        android:id="@+id/directWedgeRow4"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginBottom="30dp"
@@ -89,9 +81,40 @@
 
         <Button
             android:id="@+id/directWedgeButtonInfo"
-            android:layout_width="match_parent"
             style="@style/DashboardButton"
+            android:layout_width="match_parent"
+            android:text="Instructions"
+            android:textColor="#FFFFFF" />
+    </TableRow>
+
+    <TableRow
+        android:id="@+id/directWedgeRow5"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="30dp"
+        android:gravity="center">
+
+        <Button
+            style="@style/DashboardButton"
+            android:layout_width="match_parent"
+            android:text="About"
             android:textColor="#FFFFFF"
-            android:text="Instructions"/>
+            android:onClick="aboutClicked" />
+    </TableRow>
+
+    <TableRow
+        android:id="@+id/directWedgeRowStart"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="10dp"
+        android:gravity="center">
+
+        <Button
+            android:id="@+id/directWedgeButtonStart"
+            style="@style/DashboardButton"
+            android:layout_width="match_parent"
+            android:text="Start Wedge"
+            android:textColor="#FFFFFF"
+            android:visibility="gone" />
     </TableRow>
 </LinearLayout>

@@ -8,20 +8,17 @@ import android.view.ViewGroup;
 
 import androidx.appcompat.app.ActionBar;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.fragment.app.Fragment;
-import androidx.fragment.app.FragmentManager;
-import androidx.fragment.app.FragmentStatePagerAdapter;
-import androidx.viewpager.widget.PagerAdapter;
 import androidx.viewpager.widget.ViewPager;
 
 import com.csl.cs108ademoapp.MainActivity;
 import com.csl.cs108ademoapp.R;
+import com.csl.cslibrary4a.AdapterTab;
 import com.google.android.material.tabs.TabLayout;
 
 public class HomeWFragment extends CommonFragment {
     private ActionBar actionBar;
     private ViewPager viewPager;
-    MainWAdapter adapter;
+    AdapterTab adapter;
 
     private String[] tabs = {"Normal", "Simple"};
     int iTargetOld, iSessionOld;
@@ -35,22 +32,22 @@ public class HomeWFragment extends CommonFragment {
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         InventoryRfidiMultiFragment fragment1 = (InventoryRfidiMultiFragment) adapter.fragment1;
-        switch (item.getItemId()) {
-            case R.id.menuAction_clear:
-                fragment1.clearTagsList();
-                return true;
-            case R.id.menuAction_sortRssi:
-                fragment1.sortTagsListByRssi();
-                return true;
-            case R.id.menuAction_sort:
-                fragment1.sortTagsList();
-                return true;
-            case R.id.menuAction_save:
-                fragment1.saveTagsList();
-                return true;
-            default:
-                return super.onOptionsItemSelected(item);
-        }
+        if (item.getItemId() == R.id.menuAction_clear) {
+            fragment1.clearTagsList();
+            return true;
+        } else if (item.getItemId() == R.id.menuAction_sortRssi) {
+            fragment1.sortTagsListByRssi();
+            return true;
+        } else if (item.getItemId() == R.id.menuAction_sort) {
+            fragment1.sortTagsList();
+            return true;
+        } else if (item.getItemId() == R.id.menuAction_save) {
+            fragment1.saveTagsList();
+            return true;
+        } else if (item.getItemId() == R.id.menuAction_share) {
+            fragment1.shareTagsList();
+            return true;
+        } else return super.onOptionsItemSelected(item);
     }
 
     @Override
@@ -59,7 +56,7 @@ public class HomeWFragment extends CommonFragment {
 
         actionBar = ((AppCompatActivity) getActivity()).getSupportActionBar();
         actionBar.setIcon(R.drawable.dl_inv);
-        actionBar.setTitle(R.string.title_activity_home);
+        actionBar.setTitle(R.string.title_activity_home_cs108);
 
         TabLayout tabLayout = (TabLayout) getActivity().findViewById(R.id.OperationsTabLayout);
 
@@ -68,7 +65,11 @@ public class HomeWFragment extends CommonFragment {
             adapter.fragment0.onDestroy();
             adapter.fragment1.onDestroy();
         }
-        adapter = new MainWAdapter(getActivity().getSupportFragmentManager());
+
+        adapter = new AdapterTab(getActivity().getSupportFragmentManager(), tabs.length);
+        adapter.setFragment(0, new HomeFragment());
+        adapter.setFragment(1, new DirectWedgeFragment());
+
         MainActivity.csLibrary4A.appendToLog("viewPager is " + (viewPager == null ? "null" : "valid"));
         viewPager = (ViewPager) getActivity().findViewById(R.id.OperationsPager);
         viewPager.setAdapter(null); viewPager.setAdapter(adapter);
@@ -132,44 +133,5 @@ public class HomeWFragment extends CommonFragment {
 
     public HomeWFragment() {
         super("HomeWFragment");
-    }
-
-    public class MainWAdapter extends FragmentStatePagerAdapter {
-        private final int NO_OF_TABS = 2;
-        public Fragment fragment0, fragment1;
-
-        @Override
-        public Fragment getItem(int index) {
-            MainActivity.csLibrary4A.appendToLog("getItem = " + index);
-            Fragment fragment = null;
-            switch (index) {
-                case 0:
-                    fragment = new HomeFragment();
-                    fragment0 = fragment;
-                    break;
-                case 1:
-                    fragment = new DirectWedgeFragment();
-                    fragment1 = fragment;
-                    break;
-                default:
-                    fragment = null;
-                    break;
-            }
-            return fragment;
-        }
-
-        @Override
-        public int getCount() {
-            return NO_OF_TABS;
-        }
-
-        @Override
-        public int getItemPosition(Object object) {
-            return PagerAdapter.POSITION_NONE;
-        }
-
-        public MainWAdapter(FragmentManager fm) {
-            super(fm);
-        }
     }
 }

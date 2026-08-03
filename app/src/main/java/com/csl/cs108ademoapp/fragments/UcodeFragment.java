@@ -1,24 +1,27 @@
 package com.csl.cs108ademoapp.fragments;
 
+import static com.csl.cslibrary4a.RfidReader.TagType.TAG_NXP_UCODEDNA;
+
 import android.os.Bundle;
-import com.google.android.material.tabs.TabLayout;
-import androidx.viewpager.widget.ViewPager;
-import androidx.appcompat.app.ActionBar;
-import androidx.appcompat.app.AppCompatActivity;
 import android.view.LayoutInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 
+import androidx.appcompat.app.ActionBar;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.viewpager.widget.ViewPager;
+
 import com.csl.cs108ademoapp.R;
-import com.csl.cs108ademoapp.adapters.UcodeAdapter;
+import com.csl.cslibrary4a.AdapterTab;
+import com.google.android.material.tabs.TabLayout;
 
 public class UcodeFragment extends CommonFragment {
     private ActionBar actionBar;
     private ViewPager viewPager;
-    UcodeAdapter mAdapter;
+    AdapterTab adapter;
 
-    private String[] tabs = {"Configuration", "Scan"};
+    private String[] tabs = {"Scan", "Authenticate"};
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
@@ -28,23 +31,23 @@ public class UcodeFragment extends CommonFragment {
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        InventoryRfidiMultiFragment fragment1 = (InventoryRfidiMultiFragment) mAdapter.fragment1;
-        switch (item.getItemId()) {
-            case R.id.menuAction_clear:
-                fragment1.clearTagsList();
-                return true;
-            case R.id.menuAction_sortRssi:
-                fragment1.sortTagsListByRssi();
-                return true;
-            case R.id.menuAction_sort:
-                fragment1.sortTagsList();
-                return true;
-            case R.id.menuAction_save:
-                fragment1.saveTagsList();
-                return true;
-            default:
-                return super.onOptionsItemSelected(item);
-        }
+        InventoryRfidiMultiFragment fragment = (InventoryRfidiMultiFragment) adapter.getItem(0);
+        if (item.getItemId() == R.id.menuAction_clear) {
+            fragment.clearTagsList();
+            return true;
+        } else if (item.getItemId() == R.id.menuAction_sortRssi) {
+            fragment.sortTagsListByRssi();
+            return true;
+        } else if (item.getItemId() == R.id.menuAction_sort) {
+            fragment.sortTagsList();
+            return true;
+        } else if (item.getItemId() == R.id.menuAction_save) {
+            fragment.saveTagsList();
+            return true;
+        } else if (item.getItemId() == R.id.menuAction_share) {
+            fragment.shareTagsList();
+            return true;
+        } else return super.onOptionsItemSelected(item);
     }
 
     @Override
@@ -57,9 +60,13 @@ public class UcodeFragment extends CommonFragment {
 
         TabLayout tabLayout = (TabLayout) getActivity().findViewById(R.id.OperationsTabLayout);
 
-        mAdapter = new UcodeAdapter(getActivity().getSupportFragmentManager());
+        adapter = new AdapterTab(getActivity().getSupportFragmentManager(), tabs.length);
+        adapter.setFragment(0, InventoryRfidiMultiFragment.newInstance(true, TAG_NXP_UCODEDNA, "E2C06"));
+        adapter.setFragment(1, new AccessUcodeFragment());
+
+
         viewPager = (ViewPager) getActivity().findViewById(R.id.OperationsPager);
-        viewPager.setAdapter(mAdapter);
+        viewPager.setAdapter(adapter);
         viewPager.addOnPageChangeListener(new TabLayout.TabLayoutOnPageChangeListener(tabLayout));
 
         for (String tab_name : tabs) {
@@ -84,36 +91,36 @@ public class UcodeFragment extends CommonFragment {
 
     @Override
     public void onPause() {
-        mAdapter.fragment0.onPause();
-        mAdapter.fragment1.onPause();
+        adapter.fragment0.onPause();
+        adapter.fragment1.onPause();
         super.onPause();
     }
 
     @Override
     public void onStop() {
-        mAdapter.fragment0.onStop();
-        mAdapter.fragment1.onStop();
+        adapter.fragment0.onStop();
+        adapter.fragment1.onStop();
         super.onStop();
     }
 
     @Override
     public void onDestroyView() {
-        mAdapter.fragment0.onDestroyView();
-        mAdapter.fragment1.onDestroyView();
+        adapter.fragment0.onDestroyView();
+        adapter.fragment1.onDestroyView();
         super.onDestroyView();
     }
 
     @Override
     public void onDestroy() {
-        mAdapter.fragment0.onDestroy();
-        mAdapter.fragment1.onDestroy();
+        adapter.fragment0.onDestroy();
+        adapter.fragment1.onDestroy();
         super.onDestroy();
     }
 
     @Override
     public void onDetach() {
-        mAdapter.fragment0.onDetach();
-        mAdapter.fragment1.onDetach();
+        adapter.fragment0.onDetach();
+        adapter.fragment1.onDetach();
         super.onDetach();
     }
 

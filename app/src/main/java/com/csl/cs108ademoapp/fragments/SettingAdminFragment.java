@@ -3,6 +3,7 @@ package com.csl.cs108ademoapp.fragments;
 import android.os.Bundle;
 import android.os.Handler;
 import android.text.InputFilter;
+import android.text.Layout;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -12,6 +13,7 @@ import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.LinearLayout;
+import android.widget.RadioButton;
 import android.widget.Spinner;
 import android.widget.TableRow;
 import android.widget.TextView;
@@ -21,12 +23,13 @@ import com.csl.cs108ademoapp.CustomPopupWindow;
 import com.csl.cs108ademoapp.MainActivity;
 import com.csl.cs108ademoapp.R;
 import com.csl.cs108ademoapp.SettingTask;
-import com.csl.cs108library4a.Cs108Library4A;
+import com.csl.cslibrary4a.RfidReaderChipData;
 
 public class SettingAdminFragment extends CommonFragment {
-    private CheckBox checkBoxTriggerReporting, checkBoxInventoryBeep, checkBoxInventoryVibrate, checkBoxSaveFileEnable, checkBoxSaveCloudEnable, checkBoxSaveNewCloudEnable, checkBoxSaveAllCloudEnable, checkBoxDebugEnable;
+    private CheckBox checkBoxTriggerReporting, checkBoxInventoryBeep, checkBoxInventoryVibrate, checkBoxSaveFileEnable, checkBoxSaveCloudEnable, checkBoxSaveNewCloudEnable, checkBoxSaveAllCloudEnable, checkBoxDebugEnable, checkBoxForegroundService;
     private CheckBox checkBoxCsvColumnResBank, checkBoxCsvColumnEpcBank, checkBoxCsvColumnTidBank, checkBoxCsvColumnUserBank, checkBoxCsvColumnPhase, checkBoxCsvColumnChannel, checkBoxCsvColumnTime, checkBoxCsvColumnTimeZone, checkBoxCsvColumnLocation, checkBoxCsvColumnDirection, checkBoxCsvColumnOthers;
-    private EditText editTextDeviceName, editTextCycleDelay, editTextTriggerReportingCount, editTextBeepCount, editTextVibrateTime, editTextVibrateWindow, editTextServer, editTextServerTimeout;
+    private EditText editTextDeviceName, editTextCycleDelay, editTextTriggerReportingCount, editTextBeepCount, editTextVibrateTime, editTextVibrateWindow, editTextServer, editTextServerTimeout, editTextServerMqtt, editTextTopicMqtt, editTextForegroundDupElim, editTextServerImpinj, editTextServerImpinjName, editTextServerImpinjPasword;
+    private RadioButton radioButtonCloudSaveNone, radioButtonCloudSaveHttp, radioButtonCloudSaveMqtt;
     private TextView textViewReaderModel;
     private Spinner spinnerQueryBattery, spinnerQueryRssi, spinnerQueryVibrateMode, spinnerSavingFormat;
     private Button buttonCSLServer, button;
@@ -45,8 +48,9 @@ public class SettingAdminFragment extends CommonFragment {
     short sTriggerCount = -1, sTriggerCountMin = 1, sTriggerCountMax = 100;
     int iVibrateTime = -1; int iVibrateTimeMin = 1; int iVibrateTimeMax = 999;
     int iVibrateWindow = -1; int iVibrateWindowMin = 1; int iVibrateWindowMax = 4;
-    boolean triggerReporting, inventoryBeep, inventoryVibrate, saveFileEnable, saveCloudEnable, saveNewCloudEnable, saveAllCloudEnable, debugEnable;
-    String serverName;
+    boolean triggerReporting, inventoryBeep, inventoryVibrate, saveFileEnable, saveCloudEnable, saveNewCloudEnable, saveAllCloudEnable, debugEnable, foregroundServiceEnable;
+    String serverName, serverMqtt, topicMqtt, serverImpinj, serverImpinjName, serverImpinjPasword;
+    int buttonCloudSave = -1, iForegroundDupElimNew = -1;
     int iServerTimeout = -1; int iServerTimeoutMin = 3; int iServerTimeoutMax = 9;
 
     private SettingTask settingTask;
@@ -173,6 +177,16 @@ public class SettingAdminFragment extends CommonFragment {
         checkBoxSaveAllCloudEnable = (CheckBox) getActivity().findViewById(R.id.settingAdminAllToCloudEnable);
         editTextServer = (EditText) getActivity().findViewById(R.id.settingAdminServer);
         editTextServer.setHint("Cloud Address Pattern");
+        editTextServerMqtt = (EditText) getActivity().findViewById(R.id.settingAdminMqttServer);
+        editTextServerMqtt.setHint("IP Address Pattern");
+        editTextTopicMqtt = (EditText) getActivity().findViewById(R.id.settingAdminTopicMqtt);
+        editTextForegroundDupElim = (EditText) getActivity().findViewById(R.id.settingAdminDupElimDelay);
+        radioButtonCloudSaveNone = (RadioButton) getActivity().findViewById(R.id.settingAdminCloudSaveNone);
+        radioButtonCloudSaveHttp = (RadioButton) getActivity().findViewById(R.id.settingAdminCloudSaveHttp);
+        radioButtonCloudSaveMqtt = (RadioButton) getActivity().findViewById(R.id.settingAdminCloudSaveMqtt);
+        editTextServerImpinj = (EditText) getActivity().findViewById(R.id.settingAdminServerImpinj);
+        editTextServerImpinjName = (EditText) getActivity().findViewById(R.id.settingAdminServerImpinjName);
+        editTextServerImpinjPasword = (EditText) getActivity().findViewById(R.id.settingAdminServerImpinjPassword);
 
         TextView textViewAdminServerConnectTimeoutLabel = (TextView) getActivity().findViewById(R.id.settingAdminServerConnectTimeoutLabel);
         String stringAdminServerConnectTimeoutLabel  = textViewAdminServerConnectTimeoutLabel.getText().toString();
@@ -188,6 +202,9 @@ public class SettingAdminFragment extends CommonFragment {
                 //String serverLocation = "https://" + "www.convergence.com.hk:" + "29090/WebServiceRESTs/1.0/req/" + "create-update-delete/update-entity/" + "tagdata";
                 //String serverLocation = "http://ptsv2.com/t/10i1t-1519143332/post";
                 editTextServer.setText(serverLocation);
+                //String serverMqttLocation = "192.168.25.182";
+                //editTextServerMqtt.setText(serverMqttLocation);
+                //editTextTopicMqtt.setText("test/topic");
             }
         });
 
@@ -312,17 +329,17 @@ public class SettingAdminFragment extends CommonFragment {
                         savingFormatSelect = spinnerSavingFormat.getSelectedItemPosition();
                         {
                             csvColumnSelect = 0;
-                            if (checkBoxCsvColumnResBank.isChecked()) csvColumnSelect |= (0x01 << Cs108Library4A.CsvColumn.RESERVE_BANK.ordinal());
-                            if (checkBoxCsvColumnEpcBank.isChecked()) csvColumnSelect |= (0x01 << Cs108Library4A.CsvColumn.EPC_BANK.ordinal());
-                            if (checkBoxCsvColumnTidBank.isChecked()) csvColumnSelect |= (0x01 << Cs108Library4A.CsvColumn.TID_BANK.ordinal());
-                            if (checkBoxCsvColumnUserBank.isChecked()) csvColumnSelect |= (0x01 << Cs108Library4A.CsvColumn.USER_BANK.ordinal());
-                            if (checkBoxCsvColumnPhase.isChecked()) csvColumnSelect |= (0x01 << Cs108Library4A.CsvColumn.PHASE.ordinal());
-                            if (checkBoxCsvColumnChannel.isChecked()) csvColumnSelect |= (0x01 << Cs108Library4A.CsvColumn.CHANNEL.ordinal());
-                            if (checkBoxCsvColumnTime.isChecked()) csvColumnSelect |= (0x01 << Cs108Library4A.CsvColumn.TIME.ordinal());
-                            if (checkBoxCsvColumnTimeZone.isChecked()) csvColumnSelect |= (0x01 << Cs108Library4A.CsvColumn.TIMEZONE.ordinal());
-                            if (checkBoxCsvColumnLocation.isChecked()) csvColumnSelect |= (0x01 << Cs108Library4A.CsvColumn.LOCATION.ordinal());
-                            if (checkBoxCsvColumnDirection.isChecked()) csvColumnSelect |= (0x01 << Cs108Library4A.CsvColumn.DIRECTION.ordinal());
-                            if (checkBoxCsvColumnOthers.isChecked()) csvColumnSelect |= (0x01 << Cs108Library4A.CsvColumn.OTHERS.ordinal());
+                            if (checkBoxCsvColumnResBank.isChecked()) csvColumnSelect |= (0x01 << RfidReaderChipData.CsvColumn.RESERVE_BANK.ordinal());
+                            if (checkBoxCsvColumnEpcBank.isChecked()) csvColumnSelect |= (0x01 << RfidReaderChipData.CsvColumn.EPC_BANK.ordinal());
+                            if (checkBoxCsvColumnTidBank.isChecked()) csvColumnSelect |= (0x01 << RfidReaderChipData.CsvColumn.TID_BANK.ordinal());
+                            if (checkBoxCsvColumnUserBank.isChecked()) csvColumnSelect |= (0x01 << RfidReaderChipData.CsvColumn.USER_BANK.ordinal());
+                            if (checkBoxCsvColumnPhase.isChecked()) csvColumnSelect |= (0x01 << RfidReaderChipData.CsvColumn.PHASE.ordinal());
+                            if (checkBoxCsvColumnChannel.isChecked()) csvColumnSelect |= (0x01 << RfidReaderChipData.CsvColumn.CHANNEL.ordinal());
+                            if (checkBoxCsvColumnTime.isChecked()) csvColumnSelect |= (0x01 << RfidReaderChipData.CsvColumn.TIME.ordinal());
+                            if (checkBoxCsvColumnTimeZone.isChecked()) csvColumnSelect |= (0x01 << RfidReaderChipData.CsvColumn.TIMEZONE.ordinal());
+                            if (checkBoxCsvColumnLocation.isChecked()) csvColumnSelect |= (0x01 << RfidReaderChipData.CsvColumn.LOCATION.ordinal());
+                            if (checkBoxCsvColumnDirection.isChecked()) csvColumnSelect |= (0x01 << RfidReaderChipData.CsvColumn.DIRECTION.ordinal());
+                            if (checkBoxCsvColumnOthers.isChecked()) csvColumnSelect |= (0x01 << RfidReaderChipData.CsvColumn.OTHERS.ordinal());
                         }
                         if (editTextCycleDelay != null)   cycleDelay = Long.parseLong(editTextCycleDelay.getText().toString());
                         if (editTextTriggerReportingCount != null)   sTriggerCount = Short.parseShort(editTextTriggerReportingCount.getText().toString());
@@ -338,7 +355,18 @@ public class SettingAdminFragment extends CommonFragment {
                         saveAllCloudEnable = checkBoxSaveAllCloudEnable.isChecked();
                         serverName = editTextServer.getText().toString();
                         iServerTimeout = Integer.parseInt(editTextServerTimeout.getText().toString());
+                        serverMqtt = editTextServerMqtt.getText().toString();
+                        topicMqtt = editTextTopicMqtt.getText().toString();
+                        iForegroundDupElimNew = Integer.parseInt(editTextForegroundDupElim.getText().toString());
+                        buttonCloudSave = 0;
+                        if (radioButtonCloudSaveNone.isChecked()) buttonCloudSave = 0;
+                        else if (radioButtonCloudSaveHttp.isChecked()) buttonCloudSave = 1;
+                        else if (radioButtonCloudSaveMqtt.isChecked()) buttonCloudSave = 2;
+                        serverImpinj = editTextServerImpinj.getText().toString();
+                        serverImpinjName = editTextServerImpinjName.getText().toString();
+                        serverImpinjPasword = editTextServerImpinjPasword.getText().toString();
                         debugEnable = checkBoxDebugEnable.isChecked();
+                        foregroundServiceEnable = checkBoxForegroundService.isChecked();
                         settingUpdate();
                     } catch (Exception ex) {
                         Toast.makeText(MainActivity.mContext, R.string.toast_invalid_range, Toast.LENGTH_SHORT).show();
@@ -348,7 +376,12 @@ public class SettingAdminFragment extends CommonFragment {
         });
 
         checkBoxDebugEnable = (CheckBox) getActivity().findViewById(R.id.settingAdminDebugEnable);
+        checkBoxForegroundService = (CheckBox) getActivity().findViewById(R.id.settingAdminForegroundEnable);
 
+        if (!MainActivity.foregroundServiceEnable) {
+            LinearLayout linearLayout = (LinearLayout) getActivity().findViewById(R.id.settingAdminForegroundLayout);
+            linearLayout.setVisibility(View.GONE);
+        }
         if (sameCheck == false) MainActivity.csLibrary4A.setSameCheck(false);
         mHandler.post(updateRunnable);
     }
@@ -373,6 +406,7 @@ public class SettingAdminFragment extends CommonFragment {
             checkBoxSaveNewCloudEnable.setChecked(MainActivity.csLibrary4A.getSaveNewCloudEnable());
             checkBoxSaveAllCloudEnable.setChecked(MainActivity.csLibrary4A.getSaveAllCloudEnable());
             checkBoxDebugEnable.setChecked(MainActivity.csLibrary4A.getUserDebugEnable());
+            checkBoxForegroundService.setChecked(MainActivity.csLibrary4A.getForegroundServiceEnable());
         }
     }
 
@@ -395,17 +429,17 @@ public class SettingAdminFragment extends CommonFragment {
             spinnerSavingFormat.setSelection(MainActivity.csLibrary4A.getSavingFormatSetting());
             {
                 int csvColumnSelect = MainActivity.csLibrary4A.getCsvColumnSelectSetting();
-                if ((csvColumnSelect & (0x01 << Cs108Library4A.CsvColumn.RESERVE_BANK.ordinal())) != 0) checkBoxCsvColumnResBank.setChecked(true); else checkBoxCsvColumnResBank.setChecked(false);
-                if ((csvColumnSelect & (0x01 << Cs108Library4A.CsvColumn.EPC_BANK.ordinal())) != 0) checkBoxCsvColumnEpcBank.setChecked(true); else checkBoxCsvColumnEpcBank.setChecked(false);
-                if ((csvColumnSelect & (0x01 << Cs108Library4A.CsvColumn.TID_BANK.ordinal())) != 0) checkBoxCsvColumnTidBank.setChecked(true); else checkBoxCsvColumnTidBank.setChecked(false);
-                if ((csvColumnSelect & (0x01 << Cs108Library4A.CsvColumn.USER_BANK.ordinal())) != 0) checkBoxCsvColumnUserBank.setChecked(true); else checkBoxCsvColumnUserBank.setChecked(false);
-                if ((csvColumnSelect & (0x01 << Cs108Library4A.CsvColumn.PHASE.ordinal())) != 0) checkBoxCsvColumnPhase.setChecked(true); else checkBoxCsvColumnPhase.setChecked(false);
-                if ((csvColumnSelect & (0x01 << Cs108Library4A.CsvColumn.CHANNEL.ordinal())) != 0) checkBoxCsvColumnChannel.setChecked(true); else checkBoxCsvColumnChannel.setChecked(false);
-                if ((csvColumnSelect & (0x01 << Cs108Library4A.CsvColumn.TIME.ordinal())) != 0) checkBoxCsvColumnTime.setChecked(true); else checkBoxCsvColumnTime.setChecked(false);
-                if ((csvColumnSelect & (0x01 << Cs108Library4A.CsvColumn.TIMEZONE.ordinal())) != 0) checkBoxCsvColumnTimeZone.setChecked(true); else checkBoxCsvColumnTimeZone.setChecked(false);
-                if ((csvColumnSelect & (0x01 << Cs108Library4A.CsvColumn.LOCATION.ordinal())) != 0) checkBoxCsvColumnLocation.setChecked(true); else checkBoxCsvColumnLocation.setChecked(false);
-                if ((csvColumnSelect & (0x01 << Cs108Library4A.CsvColumn.DIRECTION.ordinal())) != 0) checkBoxCsvColumnDirection.setChecked(true); else checkBoxCsvColumnDirection.setChecked(false);
-                if ((csvColumnSelect & (0x01 << Cs108Library4A.CsvColumn.OTHERS.ordinal())) != 0) checkBoxCsvColumnOthers.setChecked(true); else checkBoxCsvColumnOthers.setChecked(false);
+                if ((csvColumnSelect & (0x01 << RfidReaderChipData.CsvColumn.RESERVE_BANK.ordinal())) != 0) checkBoxCsvColumnResBank.setChecked(true); else checkBoxCsvColumnResBank.setChecked(false);
+                if ((csvColumnSelect & (0x01 << RfidReaderChipData.CsvColumn.EPC_BANK.ordinal())) != 0) checkBoxCsvColumnEpcBank.setChecked(true); else checkBoxCsvColumnEpcBank.setChecked(false);
+                if ((csvColumnSelect & (0x01 << RfidReaderChipData.CsvColumn.TID_BANK.ordinal())) != 0) checkBoxCsvColumnTidBank.setChecked(true); else checkBoxCsvColumnTidBank.setChecked(false);
+                if ((csvColumnSelect & (0x01 << RfidReaderChipData.CsvColumn.USER_BANK.ordinal())) != 0) checkBoxCsvColumnUserBank.setChecked(true); else checkBoxCsvColumnUserBank.setChecked(false);
+                if ((csvColumnSelect & (0x01 << RfidReaderChipData.CsvColumn.PHASE.ordinal())) != 0) checkBoxCsvColumnPhase.setChecked(true); else checkBoxCsvColumnPhase.setChecked(false);
+                if ((csvColumnSelect & (0x01 << RfidReaderChipData.CsvColumn.CHANNEL.ordinal())) != 0) checkBoxCsvColumnChannel.setChecked(true); else checkBoxCsvColumnChannel.setChecked(false);
+                if ((csvColumnSelect & (0x01 << RfidReaderChipData.CsvColumn.TIME.ordinal())) != 0) checkBoxCsvColumnTime.setChecked(true); else checkBoxCsvColumnTime.setChecked(false);
+                if ((csvColumnSelect & (0x01 << RfidReaderChipData.CsvColumn.TIMEZONE.ordinal())) != 0) checkBoxCsvColumnTimeZone.setChecked(true); else checkBoxCsvColumnTimeZone.setChecked(false);
+                if ((csvColumnSelect & (0x01 << RfidReaderChipData.CsvColumn.LOCATION.ordinal())) != 0) checkBoxCsvColumnLocation.setChecked(true); else checkBoxCsvColumnLocation.setChecked(false);
+                if ((csvColumnSelect & (0x01 << RfidReaderChipData.CsvColumn.DIRECTION.ordinal())) != 0) checkBoxCsvColumnDirection.setChecked(true); else checkBoxCsvColumnDirection.setChecked(false);
+                if ((csvColumnSelect & (0x01 << RfidReaderChipData.CsvColumn.OTHERS.ordinal())) != 0) checkBoxCsvColumnOthers.setChecked(true); else checkBoxCsvColumnOthers.setChecked(false);
             }
             if (editTextCycleDelay != null)   editTextCycleDelay.setText(String.valueOf(MainActivity.csLibrary4A.getCycleDelay()));
             if (editTextTriggerReportingCount != null)   {
@@ -421,6 +455,16 @@ public class SettingAdminFragment extends CommonFragment {
             if (editTextVibrateWindow != null)   editTextVibrateWindow.setText(String.valueOf(MainActivity.csLibrary4A.getVibrateWindow()));
             editTextServer.setText(MainActivity.csLibrary4A.getServerLocation());
             editTextServerTimeout.setText(String.valueOf(MainActivity.csLibrary4A.getServerTimeout()));
+            editTextServerMqtt.setText(MainActivity.csLibrary4A.getServerMqttLocation());
+            editTextTopicMqtt.setText(MainActivity.csLibrary4A.getTopicMqtt());
+            editTextForegroundDupElim.setText(String.valueOf(MainActivity.csLibrary4A.getForegroundDupElim()));
+            int inventoryCloudSave = MainActivity.csLibrary4A.getInventoryCloudSave();
+            if (inventoryCloudSave == 0) radioButtonCloudSaveNone.setChecked(true);
+            else if (inventoryCloudSave == 1)  radioButtonCloudSaveHttp.setChecked(true);
+            else if (inventoryCloudSave == 2) radioButtonCloudSaveMqtt.setChecked(true);
+            editTextServerImpinj.setText(MainActivity.csLibrary4A.getServerImpinjLocation());
+            editTextServerImpinjName.setText(MainActivity.csLibrary4A.getServerImpinjName());
+            editTextServerImpinjPasword.setText(MainActivity.csLibrary4A.getServerImpinjPassword());
             if (updating == false) {
                 String name = MainActivity.csLibrary4A.getBluetoothICFirmwareName();
                 if (name == null)   {
@@ -596,11 +640,79 @@ public class SettingAdminFragment extends CommonFragment {
                     invalidRequest = true;
             }
         }
+        if (invalidRequest == false && editTextServerMqtt != null) {
+            String serverLocation = MainActivity.csLibrary4A.getServerMqttLocation(); if (serverLocation == null) serverLocation = "";
+            if (serverLocation.matches(serverMqtt) == false || sameCheck == false) {
+                sameSetting = false;
+                if (MainActivity.csLibrary4A.setServerMqttLocation(serverMqtt) == false)
+                    invalidRequest = true;
+            }
+        }
+        if (invalidRequest == false && editTextTopicMqtt != null) {
+            String topic = MainActivity.csLibrary4A.getTopicMqtt(); if (topic == null) topic = "";
+            if (topic.matches(topicMqtt) == false || sameCheck == false) {
+                sameSetting = false;
+                if (MainActivity.csLibrary4A.setTopicMqtt(topicMqtt) == false)
+                    invalidRequest = true;
+            }
+        }
+        if (invalidRequest == false && editTextForegroundDupElim != null) {
+            int iForegroundDupElim = MainActivity.csLibrary4A.getForegroundDupElim(); if (iForegroundDupElim < 0) iForegroundDupElim = 0;
+            if (iForegroundDupElim != iForegroundDupElimNew || sameCheck == false) {
+                sameSetting = false;
+                if (MainActivity.csLibrary4A.setForegroundDupElim(iForegroundDupElimNew) == false)
+                    invalidRequest = true;
+            }
+        }
+        if (invalidRequest == false && radioButtonCloudSaveNone != null && radioButtonCloudSaveHttp != null && radioButtonCloudSaveMqtt != null) {
+            int inventoryCloudSave = MainActivity.csLibrary4A.getInventoryCloudSave();
+            if (inventoryCloudSave != buttonCloudSave || sameCheck == false) {
+                sameSetting = false;
+                if (MainActivity.csLibrary4A.setInventoryCloudSave(buttonCloudSave) == false)
+                    invalidRequest = true;
+            }
+        }
+        if (invalidRequest == false && editTextServerImpinj != null) {
+            String string = MainActivity.csLibrary4A.getServerImpinjLocation(); if (string == null) string = "";
+            MainActivity.csLibrary4A.appendToLog("old serverImpinj = " + string + ", new = " + serverImpinj);
+            if (string.matches(serverImpinj) == false || sameCheck == false) {
+                sameSetting = false;
+                if (MainActivity.csLibrary4A.setServerImpinjLocation(serverImpinj) == false)
+                    invalidRequest = true;
+            }
+        }
+        if (invalidRequest == false && editTextServerImpinjName != null) {
+            String string = MainActivity.csLibrary4A.getServerImpinjName(); if (string == null) string = "";
+            MainActivity.csLibrary4A.appendToLog("old serverImpinjName = " + string + ", new = " + serverImpinjName);
+            if (string.matches(serverImpinjName) == false || sameCheck == false) {
+                sameSetting = false;
+                if (MainActivity.csLibrary4A.setServerImpinjName(serverImpinjName) == false)
+                    invalidRequest = true;
+            }
+        }
+        if (invalidRequest == false && editTextServerImpinjPasword != null) {
+            String string = MainActivity.csLibrary4A.getServerImpinjPassword(); if (string == null) string = "";
+            MainActivity.csLibrary4A.appendToLog("old serverImpinjPassword = " + string + ", new = " + serverImpinjPasword + ", matched = " + string.matches(serverImpinjPasword));
+            if (string.length() != serverImpinjPasword.length() || string.matches(serverImpinjPasword) == false || sameCheck == false) {
+                sameSetting = false;
+                if (MainActivity.csLibrary4A.setServerImpinjPassword(serverImpinjPasword) == false)
+                    invalidRequest = true;
+            }
+        }
         if (invalidRequest == false && checkBoxDebugEnable != null) {
             MainActivity.csLibrary4A.appendToLog("getDebugEnable = " + MainActivity.csLibrary4A.getUserDebugEnable() + ", debugEnable = " + debugEnable);
             if (MainActivity.csLibrary4A.getUserDebugEnable() != debugEnable || sameCheck == false) {
                 sameSetting = false;
                 if (MainActivity.csLibrary4A.setUserDebugEnable(debugEnable) == false)
+                    invalidRequest = true;
+            }
+        }
+        if (invalidRequest == false && checkBoxForegroundService != null && MainActivity.foregroundServiceEnable) {
+            MainActivity.csLibrary4A.appendToLog("getForegroundServiceEnable = " + MainActivity.csLibrary4A.getForegroundServiceEnable() + ", foregroundServiceEnable = " + foregroundServiceEnable);
+            if (MainActivity.csLibrary4A.getForegroundServiceEnable() != foregroundServiceEnable || sameCheck == false) {
+                sameSetting = false;
+                MainActivity.csLibrary4A.appendToLog("foregroundReader108: updated 2C");
+                if (MainActivity.csLibrary4A.setForegroundServiceEnable(foregroundServiceEnable) == false)
                     invalidRequest = true;
             }
         }
